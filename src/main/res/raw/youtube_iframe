@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+        }
+
+        .root-container iframe,
+        .root-container object,
+        .root-container embed {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .root-container>.overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="root-container">
+        <div id="player-container"></div>
+        <div class="overlay"></div>
+    </div>
+    <script>
+        var player = null;
+        var onTimeChangeIntervalId = null;
+        var pendingMedia = null;
+        var seekRequested = false;
+        var isBuffering = false;
+
+        function onReady() {
+            if (pendingMedia !== null) {
+                loadMedia(pendingMedia.videoId, pendingMedia.startTime, pendingMedia.autoplay);
+                pendingMedia = null;
+            }
+
+            InternalAndroidBridge.onReady();
+            PublicAndroidBridge.onReady();
+        }
+
+        function onError(event) {
+            if (typeof event === 'object' && typeof event.data !== 'undefined') {
+                PublicAndroidBridge.onError(event.data);
+            }
+        }
+
+        function onTimeChange() {
+            if (player !== null &&
+                typeof YT !== 'undefined' &&
+                typeof player.getPlayerState === 'function' &&
+                player.getPlayerState() == YT.PlayerState.PLAYING) {
+                    var currentTimeInMls = player.getCurrentTime() * 1000;
+                    PublicAndroidBridge.onTimeChanged(currentTimeInMls);
+
+                    if (seekRequested) {
+                        seekRequested = false;
+                        PublicAndroidBridge.onSeekPerformed();
+                    }
+            }
+        }
+
+        function onStateChange(event) {
+            if (typeof event === 'object' && typeof event.data !== 'undefined') {
+                if (isBuffering && event.data !== YT.PlayerState.BUFFERING && event.data !== YT.PlayerState.UNSTARTED) {
+                    isBuffering = false;
+                    PublicAndroidBridge.onBuffering(100);
+                }
+
+                switch (event.data) {
+                    case YT.PlayerState.ENDED:
+                        PublicAndroidBridge.onEndReached();
+                        break;
+                    case YT.PlayerState.PLAYING:
+                        var durationInMls = player.getDuration() * 1000;
+                        PublicAndroidBridge.onPlaying(durationInMls);
+                        onTimeChangeIntervalId = window.setInterval(onTimeChange, 100);
+                        break;
+                    case YT.PlayerState.PAUSED:
+                        PublicAndroidBridge.onPaused();
+                        break;
+                    case YT.PlayerState.BUFFERING:
+                        isBuffering = true;
+                        PublicAndroidBridge.onBuffering(50);
+                        break;
+                }
+            }
+        }
+
+        function pause() {
+            if (player === null) {
+                return;
+            }
+
+            player.pauseVideo();
+        }
+
+        function play() {
+            if (player === null) {
+                return;
+            }
+
+            player.playVideo();
+        }
+
+        function seek(time) {
+            if (player === null) {
+                return;
+            }
+
+            if (typeof time !== 'number' || isNaN(time) || time < 0) {
+                time = 0;
+            }
+
+            clearInterval(onTimeChangeIntervalId);
+
+            var timeInSeconds = time / 1000;
+            player.seekTo(timeInSeconds);
+            play();
+            seekRequested = true;
+        }
+
+        function loadMedia(videoId, startTime, autoplay) {
+            if (typeof videoId !== 'string') {
+                return;
+            }
+            
+            if (typeof startTime !== 'number' || isNaN(startTime) || startTime < 0) {
+                startTime = 0;
+            }
+
+            if (typeof autoplay !== 'boolean') {
+                autoplay = false;
+            }
+
+            if (player === null || typeof player.getVideoData !== 'function') {
+                pendingMedia = {
+                    videoId: videoId,
+                    startTime: startTime,
+                    autoplay: autoplay
+                };
+                return;
+            }
+
+            var videoData = player.getVideoData();
+            if (videoData.videoId === videoId) {
+                return;
+            }
+            
+            var startTimeInSeconds = startTime / 1000;
+
+            if (autoplay) {
+                player.loadVideoById({
+                    videoId: videoId,
+                    startSeconds: startTimeInSeconds
+                });
+            } else {
+                player.cueVideoById({
+                    videoId: videoId,
+                    startSeconds: startTimeInSeconds
+                });
+            }   
+        }
+
+        window.onresize = function () {
+            if (player === null) {
+                return;
+            }
+
+            player.setSize(window.innerWidth, window.innerHeight);
+        };
+    </script>
+    <script src="https://www.youtube.com/iframe_api" onerror="onError({ data: 'YouTube player failed to load.' })"></script>
+    <script>
+        if (typeof YT === 'undefined') {
+            onError({ data: 'YouTube player failed to load.' });
+        } else {
+            YT.ready(function () {
+                player = new YT.Player('player-container', {
+                    height: '100%',
+                    width: '100%',
+                    playerVars: {
+                        autoplay: 0,
+                        controls: 0,
+                        disablekb: 1,
+                        fs: 0,
+                        iv_load_policy: 3,
+                        modestbranding: 1,
+                        playsinline: 1,
+                        showinfo: 0,
+                        rel: 0
+                    },
+                    events: {
+                        onStateChange: onStateChange,
+                        onError: onError,
+                        onReady: onReady
+                    }
+                });
+
+                window.onresize();
+            });
+        }
+    </script>
+</body>
+</html>
