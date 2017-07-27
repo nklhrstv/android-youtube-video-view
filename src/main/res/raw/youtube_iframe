@@ -42,6 +42,7 @@
         var pendingMedia = null;
         var seekRequested = false;
         var isBuffering = false;
+        var playbackStarted = false;
 
         function onReady() {
             if (pendingMedia !== null) {
@@ -64,13 +65,13 @@
                 typeof YT !== 'undefined' &&
                 typeof player.getPlayerState === 'function' &&
                 player.getPlayerState() == YT.PlayerState.PLAYING) {
-                    var currentTimeInMls = player.getCurrentTime() * 1000;
-                    PublicAndroidBridge.onTimeChanged(currentTimeInMls);
+                var currentTimeInMls = player.getCurrentTime() * 1000;
+                PublicAndroidBridge.onTimeChanged(currentTimeInMls);
 
-                    if (seekRequested) {
-                        seekRequested = false;
-                        PublicAndroidBridge.onSeekPerformed();
-                    }
+                if (seekRequested) {
+                    seekRequested = false;
+                    PublicAndroidBridge.onSeekPerformed();
+                }
             }
         }
 
@@ -89,6 +90,14 @@
                         var durationInMls = player.getDuration() * 1000;
                         PublicAndroidBridge.onPlaying(durationInMls);
                         onTimeChangeIntervalId = window.setInterval(onTimeChange, 100);
+                        if (!playbackStarted) {
+                            playbackStarted = true;
+                            var availableQualityLevels = player.getAvailableQualityLevels();
+                            if (Array.isArray(availableQualityLevels) && availableQualityLevels.length > 0) {
+                                var highestQualityLevel = availableQualityLevels[0];
+                                player.setPlaybackQuality(highestQualityLevel);
+                            }
+                        }
                         break;
                     case YT.PlayerState.PAUSED:
                         PublicAndroidBridge.onPaused();
@@ -117,6 +126,15 @@
             player.playVideo();
         }
 
+        function stop() {
+            if (player === null) {
+                return;
+            }
+
+            player.stopVideo();
+            playbackStarted = false;
+        }
+
         function seek(time) {
             if (player === null) {
                 return;
@@ -138,7 +156,7 @@
             if (typeof videoId !== 'string') {
                 return;
             }
-            
+
             if (typeof startTime !== 'number' || isNaN(startTime) || startTime < 0) {
                 startTime = 0;
             }
@@ -160,9 +178,10 @@
             if (videoData.videoId === videoId) {
                 return;
             }
-            
+
             var startTimeInSeconds = startTime / 1000;
 
+            stop();
             if (autoplay) {
                 player.loadVideoById({
                     videoId: videoId,
@@ -173,7 +192,7 @@
                     videoId: videoId,
                     startSeconds: startTimeInSeconds
                 });
-            }   
+            }
         }
 
         window.onresize = function () {
