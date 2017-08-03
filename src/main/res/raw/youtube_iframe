@@ -175,7 +175,7 @@
             }
 
             var videoData = player.getVideoData();
-            if (videoData.videoId === videoId) {
+            if (videoData.video_id === videoId) {
                 return;
             }
 
