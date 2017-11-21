@@ -11,7 +11,7 @@ import android.widget.FrameLayout;
 import java.io.InputStream;
 import java.text.MessageFormat;
 
-public class YouTubeVideoView extends FrameLayout {
+public final class YouTubeVideoView extends FrameLayout {
 
     private static final String PUBLIC_JAVASCRIPT_INTERFACE_NAME = "PublicAndroidBridge";
     private static final String INTERNAL_JAVASCRIPT_INTERFACE_NAME = "InternalAndroidBridge";
