@@ -6,7 +6,7 @@ final class PublicJavascriptInterface {
 
     private final YouTubeEventListener mEventListener;
 
-    public PublicJavascriptInterface(YouTubeEventListener eventListener) {
+    PublicJavascriptInterface(final YouTubeEventListener eventListener) {
         mEventListener = eventListener;
     }
 
