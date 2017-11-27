@@ -36,13 +36,43 @@
         <div id="player-container"></div>
         <div class="overlay"></div>
     </div>
+    <!-- <script>
+        var PublicAndroidBridge = {
+            onReady: function () {
+                console.log('onReady');
+            },
+            onError: function (args) {
+                console.log('onError', args);
+            },
+            onTimeChanged: function (args) {
+                console.log('onTimeChanged', args);
+            },
+            onSeekPerformed: function () {
+                console.log('onSeekPerformed');
+            },
+            onBuffering: function (args) {
+                console.log('onBuffering', args);
+            },
+            onEndReached: function () {
+                console.log('onEndReached');
+            },
+            onPlaying: function (args) {
+                console.log('onPlaying', args);
+            },
+            onPaused: function () {
+                console.log('onPaused');
+            }
+        };
+        var InternalAndroidBridge = {
+            onReady: function () { }
+        };
+    </script> -->
     <script>
         var player = null;
         var onTimeChangeIntervalId = null;
         var pendingMedia = null;
-        var seekRequested = false;
+        var isSeekRequested = false;
         var isBuffering = false;
-        var playbackStarted = false;
 
         function onReady() {
             if (pendingMedia !== null) {
@@ -57,56 +87,57 @@
         function onError(event) {
             if (typeof event === 'object' && typeof event.data !== 'undefined') {
                 PublicAndroidBridge.onError(event.data);
+                stop();
             }
         }
 
         function onTimeChange() {
-            if (player !== null &&
-                typeof YT !== 'undefined' &&
-                typeof player.getPlayerState === 'function' &&
-                player.getPlayerState() == YT.PlayerState.PLAYING) {
-                var currentTimeInMls = player.getCurrentTime() * 1000;
-                PublicAndroidBridge.onTimeChanged(currentTimeInMls);
-
-                if (seekRequested) {
-                    seekRequested = false;
+            if (player !== null && typeof player.getPlayerState === 'function' && player.getPlayerState() == YT.PlayerState.PLAYING) {
+                var currentTimeInMilliseconds = player.getCurrentTime() * 1000;
+                PublicAndroidBridge.onTimeChanged(currentTimeInMilliseconds);
+                if (isSeekRequested) {
+                    isSeekRequested = false;
                     PublicAndroidBridge.onSeekPerformed();
                 }
             }
         }
 
         function onStateChange(event) {
-            if (typeof event === 'object' && typeof event.data !== 'undefined') {
-                if (isBuffering && event.data !== YT.PlayerState.BUFFERING && event.data !== YT.PlayerState.UNSTARTED) {
-                    isBuffering = false;
-                    PublicAndroidBridge.onBuffering(100);
-                }
+            if (typeof event !== 'object' || typeof event.data === 'undefined') {
+                return;
+            }
 
-                switch (event.data) {
-                    case YT.PlayerState.ENDED:
-                        PublicAndroidBridge.onEndReached();
-                        break;
-                    case YT.PlayerState.PLAYING:
-                        var durationInMls = player.getDuration() * 1000;
-                        PublicAndroidBridge.onPlaying(durationInMls);
+            switch (event.data) {
+                case YT.PlayerState.ENDED:
+                    PublicAndroidBridge.onEndReached();
+                    stop();
+                    break;
+                case YT.PlayerState.PLAYING:
+                    var availableQualityLevels = player.getAvailableQualityLevels();
+                    if (Array.isArray(availableQualityLevels) && availableQualityLevels.length > 0) {
+                        var highestQualityLevel = availableQualityLevels[0];
+                        player.setPlaybackQuality(highestQualityLevel);
+                    }
+
+                    if (isBuffering) {
+                        isBuffering = false;
+                        PublicAndroidBridge.onBuffering(100);
+                    }
+
+                    var durationInMilliseconds = player.getDuration() * 1000;
+                    PublicAndroidBridge.onPlaying(durationInMilliseconds);
+
+                    if (onTimeChangeIntervalId === null) {
                         onTimeChangeIntervalId = window.setInterval(onTimeChange, 100);
-                        if (!playbackStarted) {
-                            playbackStarted = true;
-                            var availableQualityLevels = player.getAvailableQualityLevels();
-                            if (Array.isArray(availableQualityLevels) && availableQualityLevels.length > 0) {
-                                var highestQualityLevel = availableQualityLevels[0];
-                                player.setPlaybackQuality(highestQualityLevel);
-                            }
-                        }
-                        break;
-                    case YT.PlayerState.PAUSED:
-                        PublicAndroidBridge.onPaused();
-                        break;
-                    case YT.PlayerState.BUFFERING:
-                        isBuffering = true;
-                        PublicAndroidBridge.onBuffering(50);
-                        break;
-                }
+                    }
+                    break;
+                case YT.PlayerState.PAUSED:
+                    PublicAndroidBridge.onPaused();
+                    break;
+                case YT.PlayerState.BUFFERING:
+                    isBuffering = true;
+                    PublicAndroidBridge.onBuffering(50);
+                    break;
             }
         }
 
@@ -127,12 +158,15 @@
         }
 
         function stop() {
-            if (player === null) {
-                return;
-            }
+            pendingMedia = null;
+            clearInterval(onTimeChangeIntervalId);
+            onTimeChangeIntervalId = null;
+            isBuffering = false;
+            isSeekRequested = false;
 
-            player.stopVideo();
-            playbackStarted = false;
+            if (player !== null) {
+                player.stopVideo();
+            }
         }
 
         function seek(time) {
@@ -144,12 +178,10 @@
                 time = 0;
             }
 
-            clearInterval(onTimeChangeIntervalId);
-
+            isSeekRequested = true;
             var timeInSeconds = time / 1000;
             player.seekTo(timeInSeconds);
             play();
-            seekRequested = true;
         }
 
         function loadMedia(videoId, startTime, autoplay) {
@@ -203,7 +235,7 @@
             player.setSize(window.innerWidth, window.innerHeight);
         };
     </script>
-    <script src="https://www.youtube.com/iframe_api" onerror="onError({ data: 'YouTube player failed to load.' })"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         if (typeof YT === 'undefined') {
             onError({ data: 'YouTube player failed to load.' });
