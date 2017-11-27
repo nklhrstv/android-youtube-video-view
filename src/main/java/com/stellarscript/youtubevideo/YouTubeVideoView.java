@@ -3,6 +3,7 @@ package com.stellarscript.youtubevideo;
 import android.content.Context;
 import android.os.Build;
 import android.view.LayoutInflater;
+import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -41,8 +42,10 @@ public final class YouTubeVideoView extends FrameLayout {
     public YouTubeVideoView(final Context context, final YouTubeEventListener eventListener) {
         super(context);
 
-        LayoutInflater.from(context).inflate(R.layout.youtube_video_view, YouTubeVideoView.this);
-        mWebView = (WebView) findViewById(R.id.web_view);
+        mWebView = new WebView(context);
+        final ViewGroup.LayoutParams layoutParams = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        addView(mWebView, layoutParams);
+
         mWebView.addJavascriptInterface(mInternalJavascriptInterface, INTERNAL_JAVASCRIPT_INTERFACE_NAME);
 
         final PublicJavascriptInterface publicJavascriptInterface = new PublicJavascriptInterface(eventListener);
