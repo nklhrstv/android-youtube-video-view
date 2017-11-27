@@ -1,6 +1,5 @@
 package com.stellarscript.youtubevideo;
 
-
 public interface YouTubeEventListener {
 
     void onError(String message);
