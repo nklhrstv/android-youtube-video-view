@@ -50,6 +50,9 @@
             onSeekPerformed: function () {
                 console.log('onSeekPerformed');
             },
+            onSeekRequested: function (args) {
+                console.log('onSeekRequested', args);
+            },
             onBuffering: function (args) {
                 console.log('onBuffering', args);
             },
@@ -92,13 +95,9 @@
         }
 
         function onTimeChange() {
-            if (player !== null && typeof player.getPlayerState === 'function' && player.getPlayerState() == YT.PlayerState.PLAYING) {
+            if (player !== null && typeof player.getPlayerState === 'function' && player.getPlayerState() == YT.PlayerState.PLAYING && !isSeekRequested) {
                 var currentTimeInMilliseconds = player.getCurrentTime() * 1000;
                 PublicAndroidBridge.onTimeChanged(currentTimeInMilliseconds);
-                if (isSeekRequested) {
-                    isSeekRequested = false;
-                    PublicAndroidBridge.onSeekPerformed();
-                }
             }
         }
 
@@ -129,6 +128,12 @@
 
                     if (onTimeChangeIntervalId === null) {
                         onTimeChangeIntervalId = window.setInterval(onTimeChange, 100);
+                    }
+
+                    if (isSeekRequested) {
+                        isSeekRequested = false;
+                        onTimeChange();
+                        PublicAndroidBridge.onSeekPerformed();
                     }
                     break;
                 case YT.PlayerState.PAUSED:
@@ -179,6 +184,7 @@
             }
 
             isSeekRequested = true;
+            PublicAndroidBridge.onSeekRequested(time);
             var timeInSeconds = time / 1000;
             player.seekTo(timeInSeconds);
             play();
