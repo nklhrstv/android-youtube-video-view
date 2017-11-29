@@ -41,6 +41,11 @@ final class PublicJavascriptInterface {
     }
 
     @JavascriptInterface
+    public void onSeekRequested(final int time) {
+        mEventListener.onSeekRequested(time);
+    }
+
+    @JavascriptInterface
     public void onBuffering(final int buffering) {
         mEventListener.onBuffering(buffering);
     }

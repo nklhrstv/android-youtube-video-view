@@ -14,6 +14,8 @@ public interface YouTubeEventListener {
 
     void onSeekPerformed();
 
+    void onSeekRequested(int time);
+
     void onBuffering(int buffering);
 
     void onReady();
