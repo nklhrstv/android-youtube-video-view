@@ -1,6 +1,6 @@
 # android-youtube-video-view
 
-Deprecated!
+Move over to [Stremio/android-youtube-video-view](https://github.com/Stremio/android-youtube-video-view)
 
 ### YouTube video player for Android based on iframe api.
 
