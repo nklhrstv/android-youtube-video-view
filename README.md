@@ -1,5 +1,7 @@
 # android-youtube-video-view
 
+Deprecated!
+
 ### YouTube video player for Android based on iframe api.
 
 #### To use it in your android project
